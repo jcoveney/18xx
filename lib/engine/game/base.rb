@@ -411,9 +411,6 @@ module Engine
         @log << "-- Stock Round #{@turn} --"
         @players.each(&:push_stock_initial_value!)
         @players.each(&:push_or_next_value!) if @turn > 1
-        @players.each { |p| @log << p.value } #TODO remove
-        @players.each { |p| @log << p.stock_value_change_history.to_s } #TODO remove
-        @players.each { |p| @log << p.or_value_change_history.to_s } #TODO remove
         Round::Stock.new(@players, game: self)
       end
 
@@ -425,9 +422,6 @@ module Engine
         else
           @players.each(&:push_or_next_value!)
         end
-        @players.each { |p| @log << p.value } #TODO remove
-        @players.each { |p| @log << p.stock_value_change_history.to_s } #TODO remove
-        @players.each { |p| @log << p.or_value_change_history.to_s } #TODO remove
         @corporations.reject(&:floated?).each { |c| c.push_revenue_history!(nil, round_num) }
         Round::Operating.new(
           @corporations.select(&:floated?).sort,

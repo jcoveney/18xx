@@ -28,7 +28,7 @@ module View
         render_player_certs,
         h(:tr, [
           h(:td, { style: { width: '20px' } }, ''),
-          h(:th, { attrs: { colspan: @game.players.length } }, 'Round Change in Value'),
+          h(:th, { attrs: { colspan: @game.players.length } }, 'Value Changes'),
         ]),
         *render_players_financial_history,
       ])
@@ -37,32 +37,28 @@ module View
     end
 
     def player_stock_change_history(player)
-      player.stock_value_change_history.select { |x| x.length > 1}.map.with_index { |change, idx| ["SR#{idx + 1}", change[1] - change[0]] }
+      player.stock_value_change_history.select { |x| x.length > 1 }.map.with_index do |change, idx|
+        ["SR#{idx + 1}", change[1] - change[0]]
+      end
     end
 
     def player_or_change_history(player)
-       player.or_value_change_history.select { |x| x.length > 1}.map.with_index do |or_values, or_idx|
-        or_values[0..-2].zip(or_values[1..-1]).map.with_index { |change, round_idx| ["OR#{or_idx + 1}.#{round_idx + 1}", change[1] - change[0]] }
+      player.or_value_change_history.select { |x| x.length > 1 }.flat_map.with_index do |or_values, or_idx|
+        or_values[0..-2].zip(or_values[1..-1]).map.with_index do |change, round_idx|
+          ["OR#{or_idx + 1}.#{round_idx + 1}", change[1] - change[0]]
+        end
       end
     end
 
     def player_interleaved_history(player)
-      player_stock_change_history(player).zip(player_or_change_history(player)).flatten.compact
+      player_stock_change_history(player).zip(player_or_change_history(player)).flatten(1)
     end
 
     def render_players_financial_history
       players_histories = @game.players.map { |p| player_interleaved_history(p) }
-      longest = players_histores.map { |hist| hist.length }.max
-      final_entry_nil = players_histories.select { |hist| hist.length == longest }.first.last.dup
-      final_entry_nil[1] = nil
-      # This is only possible if we are in an OR and some players have not gone yet
-      players_histories.each { |hist| hist.push(final_entry_nil) if hist.length < longest }
-      player_histories.transpose.map do |entries|
-        h(:tr, [
-          h(:th, entries.first.first),
-          *entries.map { |x| h(:td, x[1]) }
-        ])
-      end
+      headings = players_histories.first.map { |x| h(:th, x[0]) }
+      financials = players_histories.map { |hist| hist.map { |x| h(:td, @game.format_currency(x[1])) } }
+      ([headings] + financials).transpose.map { |r| h(:tr, r) }
     end
 
     def render_or_history_titles(arbitrary_corporation)
