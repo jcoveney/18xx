@@ -18,13 +18,51 @@ module View
       } }, [
         *render_title,
         *render_corporations,
+        h(:tr, [
+          h(:td, { style: { width: '20px' } }, ''),
+          h(:th, { attrs: { colspan: @game.players.length } }, 'Player Finances'),
+        ]),
         render_player_cash,
         render_player_privates,
         render_player_worth,
         render_player_certs,
+        h(:tr, [
+          h(:td, { style: { width: '20px' } }, ''),
+          h(:th, { attrs: { colspan: @game.players.length } }, 'Round Change in Value'),
+        ]),
+        *render_players_financial_history,
       ])
       # TODO: consider adding OR information (could do both corporation OR revenue and player change in value)
       # TODO: consider adding train availability
+    end
+
+    def player_stock_change_history(player)
+      player.stock_value_change_history.select { |x| x.length > 1}.map.with_index { |change, idx| ["SR#{idx + 1}", change[1] - change[0]] }
+    end
+
+    def player_or_change_history(player)
+       player.or_value_change_history.select { |x| x.length > 1}.map.with_index do |or_values, or_idx|
+        or_values[0..-2].zip(or_values[1..-1]).map.with_index { |change, round_idx| ["OR#{or_idx + 1}.#{round_idx + 1}", change[1] - change[0]] }
+      end
+    end
+
+    def player_interleaved_history(player)
+      player_stock_change_history(player).zip(player_or_change_history(player)).flatten.compact
+    end
+
+    def render_players_financial_history
+      players_histories = @game.players.map { |p| player_interleaved_history(p) }
+      longest = players_histores.map { |hist| hist.length }.max
+      final_entry_nil = players_histories.select { |hist| hist.length == longest }.first.last.dup
+      final_entry_nil[1] = nil
+      # This is only possible if we are in an OR and some players have not gone yet
+      players_histories.each { |hist| hist.push(final_entry_nil) if hist.length < longest }
+      player_histories.transpose.map do |entries|
+        h(:tr, [
+          h(:th, entries.first.first),
+          *entries.map { |x| h(:td, x[1]) }
+        ])
+      end
     end
 
     def render_or_history_titles(arbitrary_corporation)
@@ -87,7 +125,7 @@ module View
       props = { style: {} }
       props[:style]['background-color'] = 'rgba(220,220,220,0.4)' unless corporation.floated?
       h(:tr, props, [
-        h(:td, corporation_color, corporation.name),
+        h(:th, corporation_color, corporation.name),
         *@game.players.map do |p|
           h(:td, p.num_shares_of(corporation).to_s + (corporation.president?(p) ? '*' : ''))
         end,
@@ -113,28 +151,28 @@ module View
 
     def render_player_privates
       h(:tr, [
-        h(:td, 'Privates'),
+        h(:th, 'Privates'),
         *@game.players.map { |p| render_companies(p) }
       ])
     end
 
     def render_player_cash
       h(:tr, [
-        h(:td, 'Cash'),
+        h(:th, 'Cash'),
         *@game.players.map { |p| h(:td, @game.format_currency(p.cash)) }
       ])
     end
 
     def render_player_worth
       h(:tr, [
-        h(:td, 'Worth'),
+        h(:th, 'Worth'),
         *@game.players.map { |p| h(:td, @game.format_currency(p.value)) }
       ])
     end
 
     def render_player_certs
       h(:tr, [
-        h(:td, 'Certs'),
+        h(:th, 'Certs'),
         *@game.players.map { |p| h(:td, p.num_certs) }
       ])
     end

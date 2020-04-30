@@ -409,11 +409,25 @@ module Engine
 
       def new_stock_round
         @log << "-- Stock Round #{@turn} --"
+        @players.each(&:push_stock_initial_value!)
+        @players.each(&:push_or_next_value!) if @turn > 1
+        @players.each { |p| @log << p.value } #TODO remove
+        @players.each { |p| @log << p.stock_value_change_history.to_s } #TODO remove
+        @players.each { |p| @log << p.or_value_change_history.to_s } #TODO remove
         Round::Stock.new(@players, game: self)
       end
 
       def new_operating_round(round_num = 1)
         @log << "-- Operating Round #{@turn}.#{round_num} --"
+        if round_num == 1
+          @players.each(&:post_stock_final_value!)
+          @players.each(&:push_or_initial_value!)
+        else
+          @players.each(&:push_or_next_value!)
+        end
+        @players.each { |p| @log << p.value } #TODO remove
+        @players.each { |p| @log << p.stock_value_change_history.to_s } #TODO remove
+        @players.each { |p| @log << p.or_value_change_history.to_s } #TODO remove
         @corporations.reject(&:floated?).each { |c| c.push_revenue_history!(nil, round_num) }
         Round::Operating.new(
           @corporations.select(&:floated?).sort,
